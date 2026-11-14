@@ -1,0 +1,41 @@
+# Deployed on the docker VM at /opt/stacks/spotify-now-playing.
+# /now-playing stays internal only (docker network, no auth) for Homepage's
+# customapi widget. /play, /pause, /next, /previous are exposed LAN-only via
+# Traefik at spotify-control.int.jaan.nexus, CORS-restricted to
+# https://home.int.jaan.nexus, for the player-control buttons injected by
+# homepage's custom.js.
+name: spotify-now-playing
+
+services:
+  spotify-now-playing:
+    build: .
+    image: spotify-now-playing:local
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      CONTROL_ORIGIN: https://home.int.jaan.nexus
+    networks: [proxy]
+    secrets:
+      - spotify_client_id
+      - spotify_client_secret
+      - spotify_refresh_token
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.spotify-control.rule: Host(`spotify-control.int.jaan.nexus`)
+      traefik.http.routers.spotify-control.entrypoints: websecure
+      traefik.http.routers.spotify-control.middlewares: lan-only@file
+      traefik.http.services.spotify-control.loadbalancer.server.port: "3000"
+
+networks:
+  proxy:
+    external: true
+
+secrets:
+  spotify_client_id:
+    file: ./secrets/spotify_client_id
+  spotify_client_secret:
+    file: ./secrets/spotify_client_secret
+  spotify_refresh_token:
+    file: ./secrets/spotify_refresh_token
