@@ -70,22 +70,42 @@ const CONTROL_ROUTES = {
   '/previous': { method: 'POST', path: '/v1/me/player/previous' },
 };
 
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+async function callSpotify(route, token) {
+  const r = await fetch(`https://api.spotify.com${route.path}`, {
+    method: route.method,
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  // Docs say play/pause/next/previous return 204; observed 200 too — treat any 2xx as success.
+  if (r.ok) return { ok: true };
+  if (r.status === 404) return { ok: false, status: 404 };
+  const err = await r.json().catch(() => ({}));
+  return { ok: false, status: r.status, message: err.error?.message || '' };
+}
+
 async function runControl(pathname) {
   const route = CONTROL_ROUTES[pathname];
   const token = await getAccessToken();
   if (!token) return { status: 503, body: { ok: false, error: 'not_configured' } };
 
-  const r = await fetch(`https://api.spotify.com${route.path}`, {
-    method: route.method,
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (r.status === 404) return { status: 409, body: { ok: false, error: 'no_active_device' } };
+  let result = await callSpotify(route, token);
+  // Spotify intermittently 403s "Restriction violated" on play/pause for
+  // reasons unrelated to scope (racing the device's own state) — one quick
+  // retry reliably clears it, confirmed against the live API.
+  if (!result.ok && result.status === 403 && !/permission/i.test(result.message)) {
+    await sleep(300);
+    result = await callSpotify(route, token);
+  }
+
+  if (result.ok) return { status: 200, body: { ok: true } };
+  if (result.status === 404) return { status: 409, body: { ok: false, error: 'no_active_device' } };
   // Spotify returns 401 "Permissions missing" (not 403) when the token is
   // valid but lacks user-modify-playback-state — same cause either way.
-  if (r.status === 401 || r.status === 403) return { status: 403, body: { ok: false, error: 'forbidden_scope' } };
-  // Docs say 204; observed 200 in practice too — treat any 2xx as success.
-  if (r.ok) return { status: 200, body: { ok: true } };
-  return { status: 502, body: { ok: false, error: `spotify_${r.status}` } };
+  if (result.status === 401 || /permission/i.test(result.message)) {
+    return { status: 403, body: { ok: false, error: 'forbidden_scope' } };
+  }
+  return { status: 502, body: { ok: false, error: `spotify_${result.status}` } };
 }
 
 function setCors(res) {
