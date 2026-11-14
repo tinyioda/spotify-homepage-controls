@@ -79,11 +79,12 @@ async function runControl(pathname) {
     method: route.method,
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (r.status === 204) return { status: 200, body: { ok: true } };
   if (r.status === 404) return { status: 409, body: { ok: false, error: 'no_active_device' } };
   // Spotify returns 401 "Permissions missing" (not 403) when the token is
   // valid but lacks user-modify-playback-state — same cause either way.
   if (r.status === 401 || r.status === 403) return { status: 403, body: { ok: false, error: 'forbidden_scope' } };
+  // Docs say 204; observed 200 in practice too — treat any 2xx as success.
+  if (r.ok) return { status: 200, body: { ok: true } };
   return { status: 502, body: { ok: false, error: `spotify_${r.status}` } };
 }
 
