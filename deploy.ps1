@@ -19,10 +19,8 @@ Write-Host 'Appending spotify-controls.js/.css into homepage custom.js/custom.cs
 & $scp "$repo\homepage\spotify-controls.js" "$repo\homepage\spotify-controls.css" "${host_}:/tmp/"
 & $ssh $host_ @'
 set -e
-BEGIN="/\* spotify-controls:begin \*/"
-END="/\* spotify-controls:end \*/"
 for f in /opt/appdata/homepage/custom.js /opt/appdata/homepage/custom.css; do
-  sed -i "/$BEGIN/,/$END/d" "$f"
+  sed -i '/\/\* spotify-controls:begin \*\//,/\/\* spotify-controls:end \*\//d' "$f"
 done
 { echo "/* spotify-controls:begin */"; cat /tmp/spotify-controls.js; echo "/* spotify-controls:end */"; } >> /opt/appdata/homepage/custom.js
 { echo "/* spotify-controls:begin */"; cat /tmp/spotify-controls.css; echo "/* spotify-controls:end */"; } >> /opt/appdata/homepage/custom.css
