@@ -1,9 +1,10 @@
-/* Spotify player controls bar — injected by spotify-controls.js, home.int.jaan.nexus only. */
+/* Spotify player controls bar — injected by spotify-controls.js, home.int.jaan.nexus only.
+   Positioned (in JS) over the empty space above the Artist/Status fields. */
 #hp-spotify-controls {
   display: flex;
-  gap: 6px;
+  align-items: center;
   justify-content: center;
-  padding: 4px 0 0;
+  gap: 6px;
   z-index: 40;
   pointer-events: none; /* only the buttons themselves are interactive */
 }
@@ -32,4 +33,10 @@
 
 .hp-spotify-btn:active {
   background: rgba(29, 185, 84, 0.35);
+}
+
+.hp-spotify-btn-error {
+  border-color: #e04b4b !important;
+  color: #e04b4b !important;
+  background: rgba(224, 75, 75, 0.2) !important;
 }

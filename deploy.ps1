@@ -1,6 +1,7 @@
 # Deploys this repo's files to the Docker VM (10.10.10.10) and rebuilds
-# spotify-now-playing. Idempotent: the custom.js/custom.css append is
-# guarded by a marker so re-running this doesn't duplicate the block.
+# spotify-now-playing. Idempotent: the custom.js/custom.css block is
+# marker-delimited, so re-running this replaces it in place instead of
+# duplicating or going stale.
 # Run from PowerShell (not Bash/Git-Bash — see ssh-windows-setup memory:
 # bare `ssh`/Bash's ssh don't see the Windows ssh-agent on this machine).
 
@@ -18,13 +19,13 @@ Write-Host 'Appending spotify-controls.js/.css into homepage custom.js/custom.cs
 & $scp "$repo\homepage\spotify-controls.js" "$repo\homepage\spotify-controls.css" "${host_}:/tmp/"
 & $ssh $host_ @'
 set -e
-MARK="/* spotify-controls:begin */"
-if ! grep -qF "$MARK" /opt/appdata/homepage/custom.js; then
-  { echo "$MARK"; cat /tmp/spotify-controls.js; echo "/* spotify-controls:end */"; } >> /opt/appdata/homepage/custom.js
-fi
-if ! grep -qF "$MARK" /opt/appdata/homepage/custom.css; then
-  { echo "$MARK"; cat /tmp/spotify-controls.css; echo "/* spotify-controls:end */"; } >> /opt/appdata/homepage/custom.css
-fi
+BEGIN="/\* spotify-controls:begin \*/"
+END="/\* spotify-controls:end \*/"
+for f in /opt/appdata/homepage/custom.js /opt/appdata/homepage/custom.css; do
+  sed -i "/$BEGIN/,/$END/d" "$f"
+done
+{ echo "/* spotify-controls:begin */"; cat /tmp/spotify-controls.js; echo "/* spotify-controls:end */"; } >> /opt/appdata/homepage/custom.js
+{ echo "/* spotify-controls:begin */"; cat /tmp/spotify-controls.css; echo "/* spotify-controls:end */"; } >> /opt/appdata/homepage/custom.css
 rm -f /tmp/spotify-controls.js /tmp/spotify-controls.css
 '@
 
